@@ -1,0 +1,8 @@
+django
+django-bootstrap5
+google-genai
+python-dotenv
+python-docx
+pypdf2
+Pillow
+requests

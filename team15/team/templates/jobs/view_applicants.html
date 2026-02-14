@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}Applicants for {{ job.title }} - HR AI Agent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Applicants for: {{ job.title }}</h1>
+    <a href="{% url 'hr_jobs' %}" class="btn btn-sm btn-outline-secondary">Back to My Jobs</a>
+</div>
+
+<div class="card p-3">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Candidate</th>
+                    <th>Match Score</th>
+                    <th>Status</th>
+                    <th>Date Applied</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in applicants %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            {% if app.candidate.profile_picture %}
+                            <img src="{{ app.candidate.profile_picture.url }}" class="rounded-circle me-2" width="40"
+                                height="40">
+                            {% else %}
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+                                style="width: 40px; height: 40px;">
+                                {{ app.candidate.username|slice:":1"|upper }}
+                            </div>
+                            {% endif %}
+                            <div>
+                                <div class="fw-bold">{{ app.candidate.get_full_name|default:app.candidate.username }}
+                                </div>
+                                <div class="small text-muted">{{ app.candidate.email }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div
+                            class="fw-bold {% if app.match_score >= 80 %}text-success{% elif app.match_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ app.match_score|floatformat:1 }}%
+                        </div>
+                    </td>
+                    <td>
+                        <span
+                            class="badge {% if app.status == 'shortlisted' %}bg-success{% elif app.status == 'rejected' %}bg-danger{% elif app.status == 'interview' %}bg-info{% else %}bg-secondary{% endif %}">
+                            {{ app.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ app.applied_at|date:"M d, Y" }}</td>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                data-bs-toggle="dropdown">
+                                Action
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'application_detail' app.id %}">View Profile &
+                                        AI Analysis</a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item text-success"
+                                        href="{% url 'update_status' app.id 'shortlisted' %}">Shortlist</a></li>
+                                <li><a class="dropdown-item text-info"
+                                        href="{% url 'update_status' app.id 'interview' %}">Move to Interview Stage</a>
+                                </li>
+                                <li><a class="dropdown-item text-warning"
+                                        href="{% url 'schedule_live_interview' app.id %}"><i
+                                            class="bi bi-calendar-event me-2"></i>Schedule Video Interview</a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item text-danger"
+                                        href="{% url 'update_status' app.id 'rejected' %}">Reject</a></li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">No applicants yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

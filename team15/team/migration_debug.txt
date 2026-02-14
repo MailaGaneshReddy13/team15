@@ -1,0 +1,29 @@
+Running makemigrations from C:\Users\DELL\Downloads\team\team
+STDOUT:
+
+STDERR:
+Traceback (most recent call last):
+  File "C:\Users\DELL\Downloads\team\team\manage.py", line 22, in <module>
+    main()
+  File "C:\Users\DELL\Downloads\team\team\manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\management\__init__.py", line 443, in execute_from_command_line
+    utility.execute()
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\management\__init__.py", line 417, in execute
+    django.setup()
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\__init__.py", line 24, in setup
+    apps.populate(settings.INSTALLED_APPS)
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\registry.py", line 91, in populate
+    app_config = AppConfig.create(entry)
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\apps\config.py", line 193, in create
+    import_module(entry)
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'django_bootstrap5'
+
+Return Code: 1

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}HR Dashboard - HR AI Agent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">HR Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'post_job' %}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Post New Job
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card dashboard-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted text-uppercase small">Total Jobs Posted</h6>
+                    <h2 class="fw-bold mb-0">{{ user.posted_jobs.count }}</h2>
+                </div>
+                <i class="bi bi-briefcase text-primary shadow-sm p-3 rounded"
+                    style="font-size: 1.5rem; background: #eaecfb;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card dashboard-card p-3" style="border-left-color: var(--success-color) !important;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted text-uppercase small">Total Applicants</h6>
+                    <h2 class="fw-bold mb-0">{{ user.total_applicants }}</h2>
+                </div>
+                <i class="bi bi-people text-success shadow-sm p-3 rounded"
+                    style="font-size: 1.5rem; background: #e8f9f2;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card p-3 mb-4">
+    <h5 class="mb-3">Recent Job Postings</h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Job Title</th>
+                    <th>Location</th>
+                    <th>Applications</th>
+                    <th>Date Posted</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in user.posted_jobs.all|dictsortreversed:"created_at"|slice:":5" %}
+                <tr>
+                    <td>{{ job.title }}</td>
+                    <td>{{ job.location }}</td>
+                    <td><span class="badge bg-info">{{ job.applications.count }}</span></td>
+                    <td>{{ job.created_at|date:"M d, Y" }}</td>
+                    <td>
+                        <a href="{% url 'view_applicants' job.id %}" class="btn btn-sm btn-outline-primary">View
+                            Applicants</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">No jobs posted yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

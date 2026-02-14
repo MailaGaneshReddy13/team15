@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load django_bootstrap5 %}
+
+{% block title %}Apply - {{ job.title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h3 class="mb-3">Apply for {{ job.title }}</h3>
+            <p class="text-muted">Please upload your resume (PDF or DOCX). Our AI will analyze your profile and
+                calculate a match score.</p>
+
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {% bootstrap_form form %}
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-primary" id="apply-btn">
+                        <span id="btn-text">Upload & Analyze</span>
+                        <span id="btn-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelector('form').addEventListener('submit', function () {
+        document.getElementById('btn-text').innerText = 'Analyzing...';
+        document.getElementById('btn-spinner').classList.remove('d-none');
+        document.getElementById('apply-btn').disabled = true;
+    });
+</script>
+{% endblock %}

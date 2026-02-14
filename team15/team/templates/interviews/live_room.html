@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Live Interview Room{% endblock %}
+
+{% block extra_css %}
+<style>
+    #meet {
+        height: 80vh;
+        width: 100%;
+        border-radius: 10px;
+        overflow: hidden;
+        background-color: #000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3 align-items-center bg-dark text-white p-3 rounded">
+        <div class="col">
+            <h2 class="h4 mb-0"><i class="bi bi-camera-video-fill text-danger me-2"></i>LIVE VIDEO ROOM</h2>
+            <p class="text-white-50 mb-0">
+                Job: {{ interview.application.job.title }} |
+                Participant:
+                {% if is_hr %}
+                {{ interview.application.candidate.username }}
+                {% else %}
+                {{ interview.interviewer.username }}
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'application_detail' interview.application.id %}" class="btn btn-danger btn-sm">
+                <i class="bi bi-telephone-x me-2"></i>End Call
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div id="meet" class="shadow-lg border border-secondary"
+                style="background: #000; min-height: 80vh; display: flex; align-items: center; justify-content: center;">
+                <div class="text-center text-white">
+                    <div class="spinner-border text-light mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h4>Loading Video Interface...</h4>
+                    <p class="text-muted">Connecting to secure server...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="alert alert-info d-flex align-items-center mb-0 shadow-sm" role="alert">
+                <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+                <div>
+                    <strong>Connection Tip:</strong> If you see a "Log-in" button on the screen above, don't worry. On
+                    the public Jitsi server, the <strong>first person to join (usually HR)</strong> must click "Log-in"
+                    and use a Google/GitHub account to start the room. Once the room is started, others can join
+                    immediately without logging in.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src='https://meet.jit.si/external_api.js'></script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const domain = "{{ jitsi_domain }}";
+        const options = {
+            roomName: "{{ room_name }}",
+            width: "100%",
+            height: "100%",
+            parentNode: document.querySelector('#meet'),
+            userInfo: {
+                displayName: "{{ user.get_full_name|default:user.username }}"
+            },
+            configOverwrite: {
+                prejoinPageEnabled: false,
+                startWithAudioMuted: false,
+                startWithVideoMuted: false
+            },
+            interfaceConfigOverwrite: {
+                SHOW_JITSI_WATERMARK: false,
+                TOOLBAR_BUTTONS: [
+                    'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+                    'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+                    'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
+                    'videoquality', 'filmstrip', 'invite', 'feedback', 'stats', 'shortcuts',
+                    'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone', 'security'
+                ]
+            }
+        };
+        const api = new JitsiMeetExternalAPI(domain, options);
+
+        api.on('videoConferenceLeft', () => {
+            console.log("Conference left");
+        });
+    });
+</script>
+{% endblock %}

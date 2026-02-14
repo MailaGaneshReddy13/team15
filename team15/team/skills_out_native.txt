@@ -1,0 +1,9 @@
+--- APP ID: 2 ---
+Job Title: software developer
+Job Skills Required (Raw): 'html,css,java'
+Resume Skills (Raw): ['Python', 'Django', 'SQL', 'HTML', 'CSS']
+App Matched Skills (DB): 'html, css'
+App Missing Skills (DB): 'java'
+Extracted Job Skills: ['html', 'css', 'java']
+Calculated Matched: ['html', 'css']
+Calculated Missing: ['java']

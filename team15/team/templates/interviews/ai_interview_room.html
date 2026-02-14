@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% block title %}AI Interview Room - TalentFlow AI{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row g-4">
+        <!-- Header Section -->
+        <div class="col-12 text-center mb-2">
+            <h2 class="fw-bold"><i class="bi bi-broadcast text-danger me-2"></i>Live AI Interview Session</h2>
+            <p class="text-muted">Role: <span class="fw-bold text-primary">{{ session.role }}</span> | Focus: {{
+                session.interview_type }}</p>
+        </div>
+
+        <!-- Left: Interaction & Assistant -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100 border-0 rounded-4">
+                <div class="card-body text-center p-5">
+                    <div id="visualizer-box" class="mb-4 position-relative mx-auto"
+                        style="width: 150px; height: 150px;">
+                        <div id="ai-ring"
+                            class="position-absolute inset-0 border border-4 border-primary rounded-circle opacity-0"
+                            style="transition: all 0.3s;"></div>
+                        <div
+                            class="w-100 h-100 bg-light rounded-circle border d-flex align-items-center justify-center overflow-hidden">
+                            <img src="/static/images/robot_interviewer_avatar.png" id="ai-icon" class="img-fluid"
+                                alt="Robot Interviewer">
+                        </div>
+                    </div>
+
+                    <div id="status-display" class="mb-5">
+                        <div class="badge rounded-pill bg-light text-dark border p-2 px-3">
+                            <span id="status-indicator"
+                                class="spinner-grow spinner-grow-sm text-secondary me-2 d-none"></span>
+                            <span id="status-dot" class="d-inline-block rounded-circle bg-secondary me-2"
+                                style="width: 8px; height: 8px;"></span>
+                            <span id="status-text" class="text-uppercase small fw-black">Standby</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-3">
+                        <button id="toggle-session" class="btn btn-primary btn-lg py-3 fw-bold shadow-sm">
+                            <i class="bi bi-play-fill me-2"></i>Start Interview
+                        </button>
+                        <p class="small text-muted mb-0">Speak clearly after the interviewer finishes.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Real-time Transcript -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm h-100 border-0 rounded-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold uppercase small text-muted">Real-time Session Log</h6>
+                    <div id="ai-thinking" class="d-none">
+                        <div class="spinner-grow spinner-grow-sm text-primary" role="status"></div>
+                        <span class="ms-2 small text-primary italic">Interviewer is thinking...</span>
+                    </div>
+                </div>
+                <div id="transcript-log" class="card-body p-4 overflow-auto"
+                    style="height: 500px; background-color: #fafafa;">
+                    <div id="welcome-msg"
+                        class="h-100 d-flex flex-column align-items-center justify-center text-muted text-center italic">
+                        <i class="bi bi-chat-quote fs-1 mb-3 opacity-25"></i>
+                        <p>The shared transcript will appear here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis Overlay -->
+<div id="loading-overlay"
+    class="position-fixed top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-none align-items-center justify-center"
+    style="z-index: 2000;">
+    <div class="text-center p-5 bg-white shadow-lg rounded-4 border">
+        <div class="spinner-border text-primary lg mb-4" style="width: 3rem; height: 3rem;" role="status"></div>
+        <h4 class="fw-black mb-2">Analyzing Session</h4>
+        <p class="text-muted">Gemini is processing the transcript to generate your report...</p>
+    </div>
+</div>
+
+<style>
+    #ai-ring.active {
+        transform: scale(1.1);
+        opacity: 1 !important;
+    }
+
+    .msg-bubble {
+        max-width: 85%;
+        border-radius: 1.25rem;
+    }
+
+    .msg-ai {
+        background: white;
+        border: 1px solid #dee2e6;
+    }
+
+    .msg-user {
+        background: #e7f1ff;
+        border: 1px solid #cfe2ff;
+        align-self: flex-end;
+    }
+</style>
+
+<script>
+    const session_id = "{{ session.id }}";
+    const toggleBtn = document.getElementById('toggle-session');
+    const ring = document.getElementById('ai-ring');
+    const statusText = document.getElementById('status-text');
+    const statusDot = document.getElementById('status-dot');
+    const statusInd = document.getElementById('status-indicator');
+    const log = document.getElementById('transcript-log');
+    const emoji = document.getElementById('ai-icon');
+    const thinking = document.getElementById('ai-thinking');
+    const overlay = document.getElementById('loading-overlay');
+    const welcomeMsg = document.getElementById('welcome-msg');
+
+    let isStarted = false;
+    let recognition;
+    const synth = window.speechSynthesis;
+
+    // Coordination
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        let silenceTimer;
+        recognition.onresult = (e) => {
+            clearTimeout(silenceTimer);
+            const transcript = Array.from(e.results)
+                .map(result => result[0])
+                .map(result => result.transcript)
+                .join('');
+
+            // Detection for silence (e.g., 2 seconds of pause)
+            silenceTimer = setTimeout(() => {
+                if (transcript.trim().length > 0) {
+                    recognition.stop();
+                    addMessage("Candidate", transcript, "msg-user");
+                    sendCandidateResponse(transcript);
+                }
+            }, 2500);
+        };
+
+        recognition.onerror = (e) => {
+            console.error("STT Error:", e.error);
+            if (isStarted && e.error !== 'no-speech') {
+                statusText.innerText = "Error - Restarting Mic...";
+                setTimeout(() => { if (isStarted) tryStartMic(); }, 500);
+            }
+        };
+
+        recognition.onend = () => {
+            // If the AI is not speaking and we expected input, restart?
+            // Actually, we manage this in speak().onend
+        };
+    }
+
+    function tryStartMic() {
+        if (!isStarted) return;
+        try {
+            recognition.start();
+            statusText.innerText = "Listening...";
+            statusDot.className = "d-inline-block rounded-circle bg-success me-2";
+            statusInd.classList.add('d-none');
+        } catch (e) { /* already started */ }
+    }
+
+    function addMessage(sender, text, typeClass) {
+        if (welcomeMsg) welcomeMsg.remove();
+        const wrapper = document.createElement('div');
+        wrapper.className = `d-flex flex-column mb-4 ${sender === 'Candidate' ? 'align-items-end' : 'align-items-start'}`;
+        wrapper.innerHTML = `
+            <span class="small text-muted fw-bold uppercase mb-1 px-2" style="font-size: 0.7rem;">${sender}</span>
+            <div class="msg-bubble p-3 shadow-sm ${typeClass}">${text}</div>
+        `;
+        log.appendChild(wrapper);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function speak(text) {
+        synth.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+
+        u.onstart = () => {
+            ring.classList.add('active');
+            emoji.className = "bi bi-person-badge fs-1 text-primary";
+            statusText.innerText = "Interviewer Speaking";
+            statusDot.className = "d-inline-block rounded-circle bg-primary me-2";
+            statusInd.classList.remove('d-none');
+        };
+
+        u.onend = () => {
+            ring.classList.remove('active');
+            emoji.className = "bi bi-person-badge fs-1 text-secondary";
+            if (isStarted) {
+                tryStartMic();
+            }
+        };
+
+        synth.speak(u);
+    }
+
+    async function sendCandidateResponse(text) {
+        thinking.classList.remove('d-none');
+        statusText.innerText = "Processing...";
+
+        try {
+            // Using a timeout to ensure we don't hang if server is slow
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), 15000);
+
+            const r = await fetch(`/interviews/ai-chat/${session_id}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ response: text }),
+                signal: controller.signal
+            });
+            clearTimeout(id);
+            const d = await r.json();
+            thinking.classList.add('d-none');
+
+            if (d.status === 'success') {
+                addMessage("AI Interviewer", d.next_question, "msg-ai");
+                speak(d.next_question);
+                if (d.is_finished) {
+                    isStarted = false;
+                    setTimeout(finalizeSession, 4000);
+                }
+            } else {
+                statusText.innerText = "System Error - Retrying...";
+                setTimeout(() => tryStartMic(), 1000);
+            }
+        } catch (e) {
+            thinking.classList.add('d-none');
+            console.error("Interaction Error:", e);
+            statusText.innerText = "Connection Issue - Please continue";
+            if (isStarted) tryStartMic();
+        }
+    }
+
+    async function finalizeSession() {
+        overlay.classList.remove('d-none');
+        overlay.classList.add('d-flex');
+        try {
+            const r = await fetch(`/interviews/ai-process/${session_id}/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            const d = await r.json();
+            if (d.status === 'success') window.location.href = d.redirect_url;
+        } catch (e) { console.error("Finalize Error:", e); }
+    }
+
+    toggleBtn.onclick = async () => {
+        if (!isStarted) {
+            isStarted = true;
+            toggleBtn.innerHTML = '<i class="bi bi-stop-circle me-2"></i>End Session';
+            toggleBtn.className = "btn btn-outline-danger btn-lg py-3 fw-bold";
+
+            statusText.innerText = "Initializing...";
+            try {
+                const r = await fetch(`/interviews/ai-start/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({
+                        role: "{{ session.role }}",
+                        experience_level: "{{ session.experience_level }}",
+                        interview_type: "{{ session.interview_type }}",
+                        tech_stack: "{{ session.tech_stack }}",
+                        num_questions: "{{ session.num_questions }}"
+                    })
+                });
+                const d = await r.json();
+                if (d.status === 'success') {
+                    addMessage("AI Interviewer", d.first_question, "msg-ai");
+                    speak(d.first_question);
+                }
+            } catch (e) { console.error("Start Error:", e); }
+        } else {
+            isStarted = false;
+            synth.cancel();
+            finalizeSession();
+        }
+    };
+</script>
+{% endblock %}

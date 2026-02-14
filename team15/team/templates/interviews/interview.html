@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}Mock Interview - HR AI Agent{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card p-4">
+            <div id="interview-container">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="mb-0">Mock Interview</h3>
+                    <span class="badge bg-primary" id="question-counter">Question 1 of 5</span>
+                </div>
+
+                <div id="loading-spinner" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">Loading next question...</p>
+                </div>
+
+                <div id="question-box" class="d-none">
+                    <div class="alert alert-info py-4">
+                        <h5 class="alert-heading">Question:</h5>
+                        <p id="question-text" class="lead mb-0"></p>
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label for="answer-input" class="form-label fw-bold">Your Answer:</label>
+                        <textarea id="answer-input" class="form-control" rows="6"
+                            placeholder="Type your answer here..."></textarea>
+                    </div>
+
+                    <div class="d-grid">
+                        <button id="submit-answer-btn" class="btn btn-success btn-lg">Submit Answer</button>
+                    </div>
+                </div>
+
+                <div id="evaluating-spinner" class="d-none text-center py-5">
+                    <div class="spinner-grow text-success" role="status"></div>
+                    <p class="mt-2">AI is evaluating your answer...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    const sessionId = {{ session.id }};
+    const questionText = document.getElementById('question-text');
+    const answerInput = document.getElementById('answer-input');
+    const submitBtn = document.getElementById('submit-answer-btn');
+    const questionBox = document.getElementById('question-box');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const evaluatingSpinner = document.getElementById('evaluating-spinner');
+    const counter = document.getElementById('question-counter');
+
+    let currentQuestionId = null;
+
+    // Timer Logic
+    // 30 minutes in seconds
+    let timeRemaining = 30 * 60;
+    const timerDisplay = document.createElement('div');
+    timerDisplay.className = 'alert alert-warning mb-4 fw-bold text-center';
+    timerDisplay.style.fontSize = '1.2rem';
+    document.getElementById('interview-container').prepend(timerDisplay);
+
+    function updateTimer() {
+        const minutes = Math.floor(timeRemaining / 60);
+        const seconds = timeRemaining % 60;
+        timerDisplay.innerHTML = `<i class="bi bi-clock me-2"></i>Time Remaining: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+        if (timeRemaining <= 0) {
+            clearInterval(timerInterval);
+            alert("Time is up! Submitting your interview.");
+            window.location.href = `/interviews/finish/${sessionId}/`;
+        }
+        timeRemaining--;
+    }
+
+    const timerInterval = setInterval(updateTimer, 1000);
+    updateTimer(); // Initial call
+
+    async function loadNextQuestion() {
+        loadingSpinner.classList.remove('d-none');
+        questionBox.classList.add('d-none');
+        evaluatingSpinner.classList.add('d-none');
+
+        const response = await fetch(`/interviews/question/${sessionId}/`);
+        const data = await response.json();
+
+        if (data.finished) {
+            window.location.href = `/interviews/report/${sessionId}/`;
+        } else {
+            currentQuestionId = data.id;
+            questionText.innerText = data.text;
+            counter.innerText = `Question ${data.order} of ${data.total}`;
+            loadingSpinner.classList.add('d-none');
+            questionBox.classList.remove('d-none');
+            answerInput.value = '';
+        }
+    }
+
+    submitBtn.addEventListener('click', async () => {
+        const answer = answerInput.value.trim();
+        if (!answer) {
+            alert('Please type an answer first.');
+            return;
+        }
+
+        questionBox.classList.add('d-none');
+        evaluatingSpinner.classList.remove('d-none');
+
+        const response = await fetch('/interviews/submit-answer/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                question_id: currentQuestionId,
+                answer: answer
+            })
+        });
+
+        if (response.ok) {
+            loadNextQuestion();
+        } else {
+            alert('Error submitting answer. Please try again.');
+            questionBox.classList.remove('d-none');
+            evaluatingSpinner.classList.add('d-none');
+        }
+    });
+
+    // Start by loading first question
+    loadNextQuestion();
+</script>
+{% endblock %}
+{% endblock %}

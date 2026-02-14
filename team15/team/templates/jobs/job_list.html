@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Browse Jobs - HR AI Agent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-4">
+    <h1 class="h2">Available Jobs</h1>
+    <form class="d-flex" method="get">
+        <input class="form-control me-2" type="search" name="q" placeholder="Search by title or skill"
+            aria-label="Search" value="{{ request.GET.q }}">
+        <button class="btn btn-outline-primary" type="submit">Search</button>
+    </form>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for job in jobs %}
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ job.title }}</h5>
+                <h6 class="card-subtitle mb-2 text-muted"><i class="bi bi-geo-alt me-1"></i>{{ job.location }}</h6>
+                <p class="card-text text-truncate">{{ job.description }}</p>
+                <div class="mb-3">
+                    {% for skill in job.skills_required.split %}
+                    <span class="badge bg-light text-dark border">{{ skill|cut:"," }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="card-footer bg-white border-top-0 pb-3">
+                <a href="{% url 'job_detail' job.id %}" class="btn btn-primary w-100">View Details</a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5">
+        <p class="lead">No jobs found matching your criteria.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

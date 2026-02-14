@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}My Applications - HR AI Agent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">My Applications</h1>
+    <a href="{% url 'job_list' %}" class="btn btn-outline-primary">Browse More Jobs</a>
+</div>
+
+<div class="row row-cols-1 g-4">
+    {% for application in applications %}
+    <div class="col">
+        <div class="card p-3">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <h5 class="mb-1 text-primary">{{ application.job.title }}</h5>
+                    <p class="text-muted mb-0 small"><i class="bi bi-geo-alt me-1"></i>{{ application.job.location }}
+                    </p>
+                </div>
+                <div class="col-md-3 text-center border-start">
+                    <div
+                        class="fw-bold {% if application.match_score >= 80 %}text-success{% elif application.match_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                        Match: {{ application.match_score|floatformat:1 }}%
+                    </div>
+                    <div class="progress mt-1" style="height: 5px;">
+                        <div class="progress-bar {% if application.match_score >= 80 %}bg-success{% elif application.match_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                            role="progressbar" style="width: {{ application.match_score|floatformat:0 }}%;"></div>
+                    </div>
+                </div>
+                <div class="col-md-2 text-center border-start">
+                    <span
+                        class="badge {% if application.status == 'shortlisted' %}bg-success{% elif application.status == 'rejected' %}bg-danger{% elif application.status == 'interview' %}bg-info{% else %}bg-secondary{% endif %}">
+                        {{ application.get_status_display }}
+                    </span>
+                    <div class="small text-muted mt-1">{{ application.applied_at|date:"M d, Y" }}</div>
+                </div>
+                <div class="col-md-3 text-end border-start">
+                    <a href="{% url 'application_detail' application.id %}"
+                        class="btn btn-outline-primary btn-sm me-2">Details</a>
+
+                    <a href="{% url 'mock_interview' application.id %}" class="btn btn-outline-warning btn-sm"
+                        title="AI Mock Interview">
+                        <i class="bi bi-robot"></i> Practice
+                    </a>
+                    <!-- Live Interview Check -->
+                    {% if application.upcoming_live_interview %}
+                    <a href="{% url 'live_interview_room' application.upcoming_live_interview.meeting_id %}"
+                        class="btn btn-sm btn-danger blink-animation mt-1" target="_blank" title="Join Live Interview">
+                        <i class="bi bi-camera-video"></i> Join Live
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5">
+        <p class="lead">You haven't applied to any jobs yet.</p>
+        <a href="{% url 'job_list' %}" class="btn btn-primary">Find Your First Job</a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

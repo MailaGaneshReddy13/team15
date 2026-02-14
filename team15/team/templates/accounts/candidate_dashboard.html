@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+
+{% block title %}Candidate Dashboard - HR AI Agent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Candidate Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'job_list' %}" class="btn btn-sm btn-primary">
+            <i class="bi bi-search me-1"></i> Browse All Jobs
+        </a>
+    </div>
+</div>
+
+<!-- Notifications Panel -->
+{% if notifications %}
+<div class="mb-4" id="notifications-panel">
+    <h5 class="mb-3"><i class="bi bi-bell-fill text-warning me-2"></i>Notifications</h5>
+    {% for notification in notifications %}
+    <div class="alert {% if notification.notification_type == 'interview_scheduled' %}alert-info{% elif notification.notification_type == 'interview_cancelled' %}alert-danger{% else %}alert-secondary{% endif %} d-flex align-items-start shadow-sm"
+        id="notification-{{ notification.id }}" role="alert">
+        <div class="me-3 fs-4">
+            {% if notification.notification_type == 'interview_scheduled' %}
+            <i class="bi bi-calendar-check text-primary"></i>
+            {% elif notification.notification_type == 'interview_cancelled' %}
+            <i class="bi bi-calendar-x text-danger"></i>
+            {% else %}
+            <i class="bi bi-info-circle text-secondary"></i>
+            {% endif %}
+        </div>
+        <div class="flex-grow-1">
+            <h6 class="alert-heading fw-bold mb-1">{{ notification.title }}</h6>
+            <p class="mb-1 small">{{ notification.message }}</p>
+            {% if notification.related_interview %}
+            <div class="mt-2">
+                <a href="{% url 'live_interview_room' notification.related_interview.meeting_id %}"
+                    class="btn btn-sm btn-primary">
+                    <i class="bi bi-camera-video me-1"></i> Join Meeting
+                </a>
+            </div>
+            {% endif %}
+            <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
+        </div>
+        <form action="{% url 'mark_notification_read' notification.id %}" method="POST" class="ms-3">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Dismiss">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card dashboard-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted text-uppercase small">Jobs Applied</h6>
+                    <h2 class="fw-bold mb-0">{{ user.job_applications.count }}</h2>
+                </div>
+                <i class="bi bi-file-earmark-check text-primary shadow-sm p-3 rounded"
+                    style="font-size: 1.5rem; background: #eaecfb;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card dashboard-card p-3" style="border-left-color: var(--warning-color) !important;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="text-muted text-uppercase small">Interviews Scheduled</h6>
+                    <h2 class="fw-bold mb-0">{{ user.interviews_scheduled_count }}</h2>
+                </div>
+                <i class="bi bi-camera-video text-warning shadow-sm p-3 rounded"
+                    style="font-size: 1.5rem; background: #fff9e6;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">My Applications</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Job Title</th>
+                    <th>Match Score</th>
+                    <th>Status</th>
+                    <th>Date Applied</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for application in user.job_applications.all|dictsortreversed:"applied_at" %}
+                <tr>
+                    <td>{{ application.job.title }}</td>
+                    <td>
+                        <div class="progress" style="height: 10px; width: 100px;">
+                            <div class="progress-bar {% if application.match_score >= 80 %}bg-success{% elif application.match_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                role="progressbar" style="width: {{ application.match_score|floatformat:0 }}%;"></div>
+                        </div>
+                        <small>{{ application.match_score|floatformat:1 }}%</small>
+                    </td>
+                    <td>
+                        <span
+                            class="badge {% if application.status == 'shortlisted' %}bg-success{% elif application.status == 'rejected' %}bg-danger{% elif application.status == 'interview' %}bg-info{% else %}bg-secondary{% endif %}">
+                            {{ application.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ application.applied_at|date:"M d, Y" }}</td>
+                    <td>
+                        <a href="{% url 'application_detail' application.id %}"
+                            class="btn btn-sm btn-outline-primary">Details</a>
+
+                        <!-- Practice Mock -->
+                        <a href="{% url 'mock_interview' application.id %}" class="btn btn-sm btn-outline-warning"
+                            title="Practice with AI">
+                            <i class="bi bi-robot"></i> Practice
+                        </a>
+
+                        <!-- Live Interview Check -->
+                        {% if application.upcoming_live_interview %}
+                        <a href="{% url 'live_interview_room' application.upcoming_live_interview.meeting_id %}"
+                            class="btn btn-sm btn-danger blink-animation" target="_blank" title="Join Live Interview">
+                            <i class="bi bi-camera-video"></i> Live
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">You haven't applied to any jobs yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Personalized AI Interviews Section -->
+<div class="card p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Personalized AI Interviews</h5>
+        <a href="{% url 'ai_interview_setup' %}" class="btn btn-sm btn-success">
+            <i class="bi bi-megaphone me-1"></i> Start New Interview
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Role</th>
+                    <th>Type</th>
+                    <th>Overall Score</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in user.ai_interviews.all|dictsortreversed:"created_at" %}
+                <tr>
+                    <td>{{ session.role }}</td>
+                    <td>{{ session.interview_type }}</td>
+                    <td>
+                        {% if session.is_completed %}
+                        <div class="d-flex align-items-center">
+                            <span class="fw-bold me-2">{{ session.overall_score|floatformat:1 }}</span>
+                            <div class="progress flex-grow-1" style="height: 6px; max-width: 60px;">
+                                <div class="progress-bar bg-primary" role="progressbar"
+                                    style="width: {{ session.overall_score }}%;"></div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <span class="text-muted small italic">In Progress</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ session.created_at|date:"M d, Y" }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if session.is_completed %}
+                            <a href="{% url 'ai_interview_report' session.id %}"
+                                class="btn btn-sm btn-outline-primary">View Report</a>
+                            {% else %}
+                            <a href="{% url 'ai_interview_room' session.id %}"
+                                class="btn btn-sm btn-outline-info">Continue</a>
+                            {% endif %}
+
+                            <form action="{% url 'delete_ai_interview_session' session.id %}" method="POST"
+                                onsubmit="return confirm('Delete this interview session?');" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-link text-danger p-0"
+                                    title="Delete Session">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted">No AI interview sessions yet. Try the voice-interface
+                        creation!</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

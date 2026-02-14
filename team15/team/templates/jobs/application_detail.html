@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+
+{% block title %}Application Detail - {{ app.candidate.username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .badge-glass-success {
+        background-color: rgba(25, 135, 84, 0.1) !important;
+        color: #198754 !important;
+        border: 1px solid rgba(25, 135, 84, 0.25) !important;
+    }
+
+    .badge-glass-danger {
+        background-color: rgba(220, 53, 69, 0.1) !important;
+        color: #dc3545 !important;
+        border: 1px solid rgba(220, 53, 69, 0.25) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Left Column: Details & Analysis -->
+    <div class="col-md-8">
+        <div class="card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">Application Details</h2>
+                <span
+                    class="badge {% if app.status == 'shortlisted' %}bg-success{% elif app.status == 'rejected' %}bg-danger{% elif app.status == 'interview' %}bg-info{% else %}bg-secondary{% endif %} fs-6">
+                    {{ app.get_status_display }}
+                </span>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5>Candidate Information</h5>
+                    <p class="mb-1"><strong>Name:</strong> {{ candidate_name }}</p>
+                    <p class="mb-1"><strong>Email:</strong> {{ app.candidate.email }}</p>
+                    <p class="mb-1"><strong>Phone:</strong> {{ app.candidate.phone|default:"N/A" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <h5>Job Information</h5>
+                    <p class="mb-1"><strong>Title:</strong> {{ app.job.title }}</p>
+                    <p class="mb-1"><strong>Location:</strong> {{ app.job.location }}</p>
+                    <p class="mb-1"><strong>Applied On:</strong> {{ app.applied_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+
+            <hr>
+
+            <h4 class="mb-3">AI Resume Analysis</h4>
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="text-center p-3 bg-light rounded">
+                        <div class="h3 fw-bold mb-0">{{ app.match_score|floatformat:1 }}%</div>
+                        <div class="small text-muted">Match Score</div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="progress mt-3" style="height: 15px;">
+                        <div class="progress-bar {% if app.match_score >= 80 %}bg-success{% elif app.match_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                            role="progressbar" style="width: {{ app.match_score }}%;"
+                            aria-valuenow="{{ app.match_score }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    {% if user.role == 'candidate' and app.match_score < 80.0 %} <div class="alert alert-warning mt-3">
+                        <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Boost Your Profile!
+                        </h6>
+                        <p class="small mb-2">Your match score is below 80%. Take a skill quiz to demonstrate your
+                            expertise.</p>
+                        <a href="{% url 'quiz_home' %}{% if missing_skills %}?topic={{ missing_skills.0|urlencode }}{% endif %}"
+                            class="btn btn-warning btn-sm">Take Skill Quiz</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <h5>AI Feedback</h5>
+        <p class="bg-light p-3 rounded">{{ app.ai_feedback }}</p>
+
+        <h5>Skills Analysis</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-success"><i class="bi bi-check-circle me-2"></i>Matched Skills</h6>
+                <ul class="list-inline">
+                    {% for skill in matched_skills %}
+                    <li class="list-inline-item">
+                        <span class="badge badge-glass-success">{{ skill }}</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-inline-item">
+                        <p class="small text-muted">No direct matches found.</p>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-danger"><i class="bi bi-x-circle me-2"></i>Missing Skills</h6>
+                <ul class="list-inline">
+                    {% for skill in missing_skills %}
+                    <li class="list-inline-item">
+                        <span class="badge badge-glass-danger">{{ skill }}</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-inline-item">
+                        <p class="small text-muted">No missing skills.</p>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        {% if user.role == 'candidate' %}
+        <h5 class="mt-3">Improvement Suggestions</h5>
+        <p class="bg-light p-3 rounded border-start border-4 border-info">{{ app.improvement_suggestions }}</p>
+        {% endif %}
+
+        {% if app.resume %}
+        <div class="mt-4">
+            <a href="{{ app.resume.file.url }}" class="btn btn-outline-primary" target="_blank">
+                <i class="bi bi-file-earmark-pdf me-2"></i> View Original Resume
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Right Column: Actions & Interviews -->
+<div class="col-md-4">
+    {% if user.role == 'hr' %}
+    <div class="card p-4 mb-4">
+        <h5>Update Status</h5>
+        <div class="d-grid gap-2 mt-3">
+            <a href="{% url 'update_status' app.id 'shortlisted' %}" class="btn btn-success">Shortlist</a>
+            <a href="{% url 'update_status' app.id 'interview' %}" class="btn btn-info">Move to Interview</a>
+            <a href="{% url 'update_status' app.id 'rejected' %}" class="btn btn-danger">Reject</a>
+        </div>
+    </div>
+
+    <div class="card p-4 mb-4">
+        <h5>Schedule Live Interview</h5>
+        <p class="small text-muted">Schedule a video interview with the candidate.</p>
+        <div class="d-grid gap-2 mt-2">
+            <a href="{% url 'schedule_live_interview' app.id %}" class="btn btn-warning">
+                <i class="bi bi-calendar-event me-2"></i>Schedule Now
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Practice Mock Interview -->
+    {% if user.role == 'candidate' %}
+    <div class="card p-4 mb-4 border-primary dashed-border">
+        <h5 class="text-primary"><i class="bi bi-robot me-2"></i>AI Mock Interview (Practice)</h5>
+        <p class="small">Prepare for your actual interview with our AI-powered mock interview session. You'll face 30
+            questions (Technical, Aptitude, Behavioral).</p>
+        <div class="d-grid gap-2">
+            {% if app.interview_sessions.exists %}
+            {% for session in app.interview_sessions.all %}
+            {% if session.is_completed %}
+            <a href="{% url 'interview_report' session.id %}" class="btn btn-outline-primary btn-sm">
+                Results ({{ session.created_at|date:"M d" }}) - Score: {{ session.overall_score|floatformat:0 }}%
+            </a>
+            {% else %}
+            <a href="{% url 'mock_interview' app.id %}" class="btn btn-warning btn-sm">
+                <i class="bi bi-play-circle me-2"></i>Continue Session
+            </a>
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+            <a href="{% url 'mock_interview' app.id %}" class="btn btn-primary">
+                <i class="bi bi-play-circle-fill me-2"></i>Start New Session
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Live Interview Card -->
+    <div class="card p-4 mt-3 border-danger">
+        <h5 class="text-danger"><i class="bi bi-camera-video me-2"></i>Live HR Interview (Official)</h5>
+        {% if app.upcoming_live_interview %}
+        <div class="mb-3 p-2 bg-light rounded border border-danger-subtle">
+            <p class="mb-1"><strong>Scheduled:</strong> {{ app.upcoming_live_interview.scheduled_at }}</p>
+            <p class="mb-1"><strong>Status:</strong> {{ app.upcoming_live_interview.get_status_display }}</p>
+            <a href="{% url 'live_interview_room' app.upcoming_live_interview.meeting_id %}"
+                class="btn btn-danger btn-sm w-100 mt-2" target="_blank">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Join Live Room (Opens new window)
+            </a>
+        </div>
+        {% else %}
+        <div class="text-center py-3 text-muted">
+            <i class="bi bi-calendar-x fs-1 mb-2"></i>
+            <p class="mb-0">No live interviews scheduled.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary w-100 mt-4">Back to Dashboard</a>
+</div>
+</div>
+{% endblock %}

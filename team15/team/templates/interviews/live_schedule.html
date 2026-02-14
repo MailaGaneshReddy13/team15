@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Schedule Live Interview - {{ application.candidate.username }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Schedule Live Interview</h4>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-4">
+                    <h5>Candidate: {{ application.candidate.get_full_name|default:application.candidate.username }}</h5>
+                    <p class="text-muted">Job: {{ application.job.title }}</p>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="scheduled_at" class="form-label">Date and Time</label>
+                        <input type="datetime-local" class="form-control" id="scheduled_at" name="scheduled_at"
+                            required>
+                        <div class="form-text">Select the date and time for the interview.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="duration" class="form-label">Duration (minutes)</label>
+                        <select class="form-select" id="duration" name="duration">
+                            <option value="15">15 minutes</option>
+                            <option value="30" selected>30 minutes</option>
+                            <option value="45">45 minutes</option>
+                            <option value="60">1 Hour</option>
+                            <option value="90">1.5 Hours</option>
+                        </select>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>Schedule Interview
+                        </button>
+                        <a href="{% url 'application_detail' application.id %}"
+                            class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    // Set minimum date to current time
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('scheduled_at').min = now.toISOString().slice(0, 16);
+</script>
+{% endblock %}

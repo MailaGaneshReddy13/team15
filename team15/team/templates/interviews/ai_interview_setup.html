@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% block title %}AI Interview Setup - TalentFlow AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-primary text-white py-3">
+                    <h4 class="mb-0 font-weight-bold">
+                        <i class="bi bi-robot me-2"></i>AI Interview Setup Wizard
+                    </h4>
+                </div>
+                <div class="card-body p-5">
+                    <!-- Progress Tracker -->
+                    <div class="mb-5">
+                        <div class="progress" style="height: 10px;">
+                            <div id="progress-bar"
+                                class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                                role="progressbar" style="width: 20%"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2 text-muted small">
+                            <span>Step 1: Role</span>
+                            <span id="step-label">1 / 5</span>
+                        </div>
+                    </div>
+
+                    <div class="row align-items-center mb-5">
+                        <div class="col-md-4 text-center">
+                            <div class="mb-3">
+                                <button id="start-voice"
+                                    class="btn btn-outline-primary btn-lg rounded-circle p-4 position-relative"
+                                    style="width: 100px; height: 100px;">
+                                    <i id="mic-icon" class="bi bi-mic-fill fs-1"></i>
+                                    <div id="mic-pulse"
+                                        class="position-absolute top-50 start-50 translate-middle w-100 h-100 rounded-circle bg-primary opacity-0"
+                                        style="z-index: -1;"></div>
+                                </button>
+                            </div>
+                            <h6 id="assistant-status" class="fw-bold text-primary">Ready</h6>
+                            <p id="assistant-hint" class="text-muted small">Click mic to use voice</p>
+                        </div>
+                        <div class="col-md-8 border-start ps-md-5">
+                            <div id="wizard-steps">
+                                <!-- Step 0: Role -->
+                                <div data-step="0" class="step-view">
+                                    <label class="form-label fw-bold text-uppercase small text-muted">Aspirant
+                                        Role</label>
+                                    <input type="text" id="input-role" class="form-control form-control-lg rounded-3"
+                                        placeholder="e.g. Django Developer">
+                                    <div class="form-text mt-2">Specify the job title for the mock interview.</div>
+                                </div>
+                                <!-- Step 1: Level -->
+                                <div data-step="1" class="step-view d-none">
+                                    <label class="form-label fw-bold text-uppercase small text-muted">Experience
+                                        Level</label>
+                                    <select id="input-level" class="form-select form-select-lg rounded-3">
+                                        <option value="Intern">Intern</option>
+                                        <option value="Junior" selected>Junior</option>
+                                        <option value="Mid-Level">Mid-Level</option>
+                                        <option value="Senior">Senior</option>
+                                        <option value="Lead">Lead / Architect</option>
+                                    </select>
+                                </div>
+                                <!-- Step 2: Focus -->
+                                <div data-step="2" class="step-view d-none">
+                                    <label class="form-label fw-bold text-uppercase small text-muted">Interview
+                                        Focus</label>
+                                    <select id="input-type" class="form-select form-select-lg rounded-3">
+                                        <option value="Technical Interview">Technical Assessment</option>
+                                        <option value="Behavioral Interview">Behavioral / HR</option>
+                                        <option value="System Design">System Design</option>
+                                    </select>
+                                </div>
+                                <!-- Step 3: Tech Stack -->
+                                <div data-step="3" class="step-view d-none">
+                                    <label class="form-label fw-bold text-uppercase small text-muted">Technology
+                                        Stack</label>
+                                    <input type="text" id="input-stack" class="form-control form-control-lg rounded-3"
+                                        placeholder="e.g. Python, AWS, Docker">
+                                </div>
+                                <!-- Step 4: Questions -->
+                                <div data-step="4" class="step-view d-none">
+                                    <label class="form-label fw-bold text-uppercase small text-muted">Question
+                                        Count</label>
+                                    <input type="number" id="input-questions"
+                                        class="form-control form-control-lg rounded-3" value="5" min="1" max="15">
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-4">
+                                <button id="prev-step" class="btn btn-light d-none">Back</button>
+                                <button id="next-step" class="btn btn-primary px-4 ms-auto">Next Step <i
+                                        class="bi bi-arrow-right ms-2"></i></button>
+                                <button id="confirm-setup" class="btn btn-success px-5 d-none">Launch Interview Room <i
+                                        class="bi bi-rocket-takeoff ms-2"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-light py-3 border-0">
+                    <p class="mb-0 text-center text-muted small">You can use your voice or type manually to configure
+                        the session.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-outline-primary:hover #mic-icon {
+        color: white;
+    }
+
+    #mic-pulse.animate-pulse {
+        animation: pulse 1.5s infinite;
+        opacity: 0.3 !important;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 0.4;
+        }
+
+        100% {
+            transform: translate(-50%, -50%) scale(1.8);
+            opacity: 0;
+        }
+    }
+
+    .rounded-4 {
+        border-radius: 1rem !important;
+    }
+</style>
+
+<script>
+    const setupData = {
+        role: "",
+        experience_level: "Junior",
+        interview_type: "Technical Interview",
+        tech_stack: "",
+        num_questions: 5
+    };
+
+    let currentStep = 0;
+    const totalSteps = 5;
+    const steps = [
+        { field: 'role', prompt: "What role is this for?", inputId: 'input-role' },
+        { field: 'experience_level', prompt: "Select experience level", inputId: 'input-level' },
+        { field: 'interview_type', prompt: "Choose interview focus", inputId: 'input-type' },
+        { field: 'tech_stack', prompt: "Describe the tech stack", inputId: 'input-stack' },
+        { field: 'num_questions', prompt: "How many questions?", inputId: 'input-questions' }
+    ];
+
+    const progressBar = document.getElementById('progress-bar');
+    const stepLabel = document.getElementById('step-label');
+    const assistantStatus = document.getElementById('assistant-status');
+    const assistantHint = document.getElementById('assistant-hint');
+    const views = document.querySelectorAll('.step-view');
+    const nextBtn = document.getElementById('next-step');
+    const prevBtn = document.getElementById('prev-step');
+    const confirmBtn = document.getElementById('confirm-setup');
+    const micPulse = document.getElementById('mic-pulse');
+
+    function updateUI() {
+        views.forEach((v, i) => v.classList.toggle('d-none', i !== currentStep));
+        progressBar.style.width = `${((currentStep + 1) / totalSteps) * 100}%`;
+        stepLabel.innerText = `${currentStep + 1} / ${totalSteps}`;
+        assistantStatus.innerText = steps[currentStep].prompt;
+
+        prevBtn.classList.toggle('d-none', currentStep === 0);
+        nextBtn.classList.toggle('d-none', currentStep === totalSteps - 1);
+        confirmBtn.classList.toggle('d-none', currentStep !== totalSteps - 1);
+    }
+
+    const speak = (text) => {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.onstart = () => micPulse.classList.add('animate-pulse');
+        u.onend = () => micPulse.classList.remove('animate-pulse');
+        window.speechSynthesis.speak(u);
+    };
+
+    function runRecognition() {
+        if (!('webkitSpeechRecognition' in window)) return;
+        const rec = new webkitSpeechRecognition();
+        rec.lang = 'en-US';
+        rec.onstart = () => { assistantHint.innerText = "Listening..."; micPulse.classList.add('animate-pulse'); };
+        rec.onresult = (e) => {
+            const transcript = e.results[0][0].transcript;
+            document.getElementById(steps[currentStep].inputId).value = transcript.replace(/[.?!]$/g, "");
+            setTimeout(nextStep, 1000);
+        };
+        rec.onend = () => { assistantHint.innerText = "Click mic to try again"; micPulse.classList.remove('animate-pulse'); };
+        rec.start();
+    }
+
+    function nextStep() {
+        const val = document.getElementById(steps[currentStep].inputId).value;
+        setupData[steps[currentStep].field] = val;
+        if (currentStep < totalSteps - 1) {
+            currentStep++;
+            updateUI();
+            speak(steps[currentStep].prompt);
+        }
+    }
+
+    nextBtn.onclick = nextStep;
+    prevBtn.onclick = () => { if (currentStep > 0) { currentStep--; updateUI(); } };
+    document.getElementById('start-voice').onclick = runRecognition;
+
+    confirmBtn.onclick = () => {
+        // Collect all data once more
+        setupData.role = document.getElementById('input-role').value;
+        setupData.experience_level = document.getElementById('input-level').value;
+        setupData.interview_type = document.getElementById('input-type').value;
+        setupData.tech_stack = document.getElementById('input-stack').value;
+        setupData.num_questions = document.getElementById('input-questions').value;
+
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Preparing...';
+
+        fetch('/interviews/ai-start/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify(setupData)
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.href = `/interviews/ai-room/${data.session_id}/`;
+                } else {
+                    alert(data.message);
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerText = "Launch Interview Room";
+                }
+            });
+    };
+
+    window.onload = () => { updateUI(); };
+</script>
+{% endblock %}

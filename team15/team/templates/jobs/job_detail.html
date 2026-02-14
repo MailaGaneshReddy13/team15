@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ job.title }} - HR AI Agent{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card p-4 mb-4">
+            <h2 class="text-primary">{{ job.title }}</h2>
+            <p class="text-muted"><i class="bi bi-geo-alt me-2"></i>{{ job.location }} | <i
+                    class="bi bi-calendar-event me-2"></i>Posted {{ job.created_at|date:"M d, Y" }}</p>
+
+            <hr>
+
+            <h5>Description</h5>
+            <p>{{ job.description|linebreaks }}</p>
+
+            <h5 class="mt-4">Required Skills</h5>
+            <div class="mb-3">
+                {% for skill in job.skills_required.split %}
+                <span class="badge bg-light text-dark border me-1">{{ skill|cut:"," }}</span>
+                {% endfor %}
+            </div>
+
+            <h5>Experience Required</h5>
+            <p>{{ job.experience_required }}</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4">
+            {% if user.role == 'candidate' %}
+            {% if has_applied %}
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle me-2"></i> You have already applied.
+            </div>
+            {% else %}
+            <h5>Apply for this Job</h5>
+            <p class="small text-muted">Upload your resume for AI screening to apply.</p>
+            <a href="{% url 'apply_job' job.id %}" class="btn btn-primary w-100">Apply Now</a>
+            {% endif %}
+            {% else %}
+            <h5>Manage Job</h5>
+            <a href="{% url 'view_applicants' job.id %}" class="btn btn-info w-100 mb-2">View Applicants</a>
+            {% endif %}
+            <a href="{% url 'job_list' %}" class="btn btn-outline-secondary w-100 mt-2">Back to List</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}Interview Performance Report - TalentFlow AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Main Report Card -->
+            <div class="card shadow-sm border-0 rounded-4 mb-5">
+                <div class="card-header bg-white border-bottom py-4 text-center">
+                    <h2 class="fw-bold mb-1">Interview Analysis Report</h2>
+                    <p class="text-muted mb-0">Role: <span class="text-primary fw-bold">{{ session.role }}</span> |
+                        Candidate: {{ session.candidate.username }}</p>
+                </div>
+                <div class="card-body p-5">
+
+                    <!-- Top Score Section -->
+                    <div class="row align-items-center mb-5 pb-5 border-bottom">
+                        <div class="col-md-4 text-center">
+                            <div class="d-inline-flex flex-column align-items-center justify-content-center border border-5 border-primary rounded-circle"
+                                style="width: 180px; height: 180px;">
+                                <h1 class="h2 fw-bold text-primary mb-0">{{ session.overall_score|floatformat:1 }}</h1>
+                                <span class="text-uppercase small fw-bold text-muted">Overall Score</span>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <h5 class="fw-bold text-dark mb-3"><i class="bi bi-robot me-2 text-primary"></i>AI Executive
+                                Summary</h5>
+                            <p class="lead text-secondary italic" style="font-size: 1.1rem; line-height: 1.6;">
+                                "{{ session.feedback_summary }}"
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Performance Visualization -->
+                    <div class="mb-5">
+                        <h5 class="fw-bold text-dark mb-4 text-center">Skill Proficiency Breakdown</h5>
+                        <div class="p-4 bg-light rounded-4 border">
+                            <canvas id="performanceChart" style="max-height: 350px;"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Feedback Cards -->
+                    <div>
+                        <h5 class="fw-bold text-dark mb-4 text-center">Detailed Category Analysis</h5>
+                        <div class="row g-4">
+                            {% for category, feedback in session.detailed_feedback.items %}
+                            <div class="col-md-6">
+                                <div class="card h-100 bg-white border shadow-sm rounded-3">
+                                    <div class="card-body p-4">
+                                        <h6 class="text-primary fw-black text-uppercase small mb-3">{{ category }}</h6>
+                                        <p class="text-secondary small mb-0">{{ feedback }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                </div>
+                <div class="card-footer bg-light border-0 py-4 d-flex justify-content-center gap-3">
+                    <a href="{% url 'ai_interview_setup' %}" class="btn btn-primary px-4 fw-bold">
+                        <i class="bi bi-arrow-repeat me-2"></i>New Mock Session
+                    </a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary px-4">
+                        Return to Dashboard
+                    </a>
+                    <button type="button" class="btn btn-outline-danger px-4" data-bs-toggle="modal"
+                        data-bs-target="#deleteAiModal">
+                        <i class="bi bi-trash me-2"></i>Delete Session
+                    </button>
+                </div>
+            </div>
+
+            <!-- Delete Confirmation Modal -->
+            <div class="modal fade" id="deleteAiModal" tabindex="-1" aria-labelledby="deleteAiModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="deleteAiModalLabel">Delete Interview Session</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body text-center py-4">
+                            <div class="text-danger mb-3">
+                                <i class="bi bi-trash3-fill display-4"></i>
+                            </div>
+                            <p class="mb-0 fw-bold">Permanently delete this interview report?</p>
+                            <p class="text-muted small">This will remove all scores, feedback, and transcripts.</p>
+                        </div>
+                        <div class="modal-footer justify-content-center border-0 pb-4">
+                            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                            <form action="{% url 'delete_ai_interview_session' session.id %}" method="POST"
+                                class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger px-4">Confirm Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Optional: Transcript Section -->
+            <div class="accordion" id="transcriptAccordion">
+                <div class="accordion-item border-0 shadow-sm rounded-4 overflow-hidden">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold text-muted" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#collapseTranscript">
+                            View Full Interview Transcript
+                        </button>
+                    </h2>
+                    <div id="collapseTranscript" class="accordion-collapse collapse"
+                        data-bs-parent="#transcriptAccordion">
+                        <div class="accordion-body bg-light">
+                            <div class="p-4 bg-white border rounded-3 font-monospace"
+                                style="white-space: pre-wrap; font-size: 0.85rem;">
+                                {{ session.transcript }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const radarData = JSON.parse('{{ radar_data_json|safe }}');
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(radarData),
+                datasets: [{
+                    label: 'Score (out of 100)',
+                    data: Object.values(radarData),
+                    backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                    borderColor: 'rgb(13, 110, 253)',
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    barThickness: 25
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { display: false }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { font: { weight: 'bold' } }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: '#212529',
+                        titleFont: { weight: 'bold' }
+                    }
+                }
+            }
+        });
+    });
+</script>
+
+<style>
+    .rounded-4 {
+        border-radius: 1rem !important;
+    }
+
+    .fw-black {
+        font-weight: 900;
+    }
+
+    .italic {
+        font-style: italic;
+    }
+
+    .accordion-button:not(.collapsed) {
+        background-color: #fff;
+        color: inherit;
+        box-shadow: none;
+    }
+</style>
+{% endblock %}

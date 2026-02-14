@@ -1,0 +1,372 @@
+{% extends 'base.html' %}
+{% block title %}Skill Quiz - HR AI Agent{% endblock %}
+
+{% block extra_css %}
+<style>
+    .quiz-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .question-card {
+        display: none;
+        animation: fadeIn 0.5s;
+    }
+
+    .question-card.active {
+        display: block;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .option-btn {
+        width: 100%;
+        text-align: left;
+        margin-bottom: 10px;
+        transition: all 0.3s;
+        border: 2px solid #e3e6f0;
+    }
+
+    .option-btn:hover {
+        background-color: #f8f9fc;
+        transform: translateX(5px);
+        border-color: #4e73df;
+    }
+
+    .option-btn.selected {
+        background-color: #4e73df;
+        color: white;
+        border-color: #4e73df;
+    }
+
+    .timer-bar {
+        height: 5px;
+        background: #e3e6f0;
+        margin-bottom: 20px;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+
+    .timer-fill {
+        height: 100%;
+        background: #4e73df;
+        width: 0%;
+        transition: width 0.3s linear;
+    }
+
+    @keyframes pulse {
+        0% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.6;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }
+
+    .animate-pulse {
+        animation: pulse 1.5s infinite ease-in-out;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="quiz-container">
+        <!-- Topic Selection -->
+        <div id="topic-selection" class="card shadow-lg p-5">
+            <h2 class="text-center mb-4">Take a Skill Quiz</h2>
+            <p class="text-center text-muted mb-4">Boost your profile by demonstrating your skills. Enter a topic to
+                generate a personalized 30-question quiz.</p>
+
+            <form id="topic-form" class="row g-3 justify-content-center">
+                <div class="col-md-8">
+                    <input type="text" id="topic-input" class="form-control form-control-lg"
+                        placeholder="Enter Topic (e.g., Python, SQL, Marketing)" value="{{ preset_topic }}" required>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" id="start-quiz-btn" class="btn btn-primary btn-lg w-100">
+                        <span id="loading-spinner" class="spinner-border spinner-border-sm d-none me-2"></span>
+                        Start Quiz
+                    </button>
+                </div>
+            </form>
+            <div id="generation-status" class="text-center mt-3 d-none">
+                <p class="text-primary animate-pulse"><i class="bi bi-robot me-2"></i>AI is generating personalized
+                    questions for you...</p>
+            </div>
+
+            {% if suggested_skills %}
+            <div class="mt-5">
+                <h5 class="text-center mb-3">Suggested Skills from Your Resume</h5>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    {% for skill in suggested_skills %}
+                    <button class="btn btn-outline-info btn-sm skill-pill" onclick="setTopic('{{ skill|escapejs }}')">
+                        <i class="bi bi-stars me-1"></i>{{ skill }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Quiz Interface -->
+        <div id="quiz-interface" class="card shadow-lg p-5 mb-4" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="m-0" id="topic-display">Topic: <span class="text-primary fw-bold"></span></h5>
+                <span class="badge bg-secondary">Question <span id="current-q">1</span>/<span
+                        id="total-q">30</span></span>
+            </div>
+
+            <div class="timer-bar">
+                <div id="progress-bar" class="timer-fill"></div>
+            </div>
+
+            <div id="questions-container">
+                <!-- Questions injected here -->
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <button id="prev-btn" class="btn btn-outline-secondary" disabled>Previous</button>
+                <button id="next-btn" class="btn btn-primary">Next</button>
+                <button id="submit-btn" class="btn btn-success" style="display: none;">Submit Quiz</button>
+            </div>
+        </div>
+
+        <!-- Details Result -->
+        <div id="result-screen" class="card shadow-lg p-5 text-center" style="display: none;">
+            <div class="mb-4">
+                <i class="bi bi-trophy-fill text-warning" style="font-size: 5rem;"></i>
+            </div>
+            <h2 class="mb-3">Quiz Completed!</h2>
+            <h3 class="display-4 fw-bold mb-4">Score: <span id="score-display">0</span>/30</h3>
+            <p id="feedback-msg" class="lead mb-4"></p>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-center">
+                <a href="{% url 'quiz_history' %}" class="btn btn-outline-primary">View History</a>
+                <button onclick="location.reload()" class="btn btn-primary">Take Another Quiz</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let questions = [];
+    let currentQuestionIndex = 0;
+    let userAnswers = {};
+    let currentTopic = "";
+
+    const topicForm = document.getElementById('topic-form');
+    const topicInput = document.getElementById('topic-input');
+    const topicSelection = document.getElementById('topic-selection');
+    const quizInterface = document.getElementById('quiz-interface');
+    const questionsContainer = document.getElementById('questions-container');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const submitBtn = document.getElementById('submit-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const currentQSpan = document.getElementById('current-q');
+    const totalQSpan = document.getElementById('total-q');
+    const topicDisplay = document.querySelector('#topic-display span');
+    const loadingSpinner = document.getElementById('loading-spinner');
+
+    const generationStatus = document.getElementById('generation-status');
+    const startQuizBtn = document.getElementById('start-quiz-btn');
+
+    topicForm.addEventListener('submit', async (e) => {
+        if (e) e.preventDefault();
+        const topic = topicInput.value.trim();
+        if (!topic) return;
+
+        currentTopic = topic;
+        loadingSpinner.classList.remove('d-none');
+        generationStatus.classList.remove('d-none');
+        startQuizBtn.disabled = true;
+
+        try {
+            const response = await fetch(`{% url 'get_quiz_questions' %}?topic=${encodeURIComponent(topic)}`);
+            const data = await response.json();
+            console.log("Quiz Data Received:", data);
+
+            if (data.error) {
+                console.error("Quiz Error:", data.error);
+                alert(data.error);
+                return;
+            }
+
+            questions = data.questions;
+            if (questions.length === 0) {
+                alert("Failed to generate questions. Please try again.");
+                return;
+            }
+
+            startQuiz();
+        } catch (error) {
+            console.error('Error:', error);
+            alert("An error occurred while fetching questions.");
+        } finally {
+            loadingSpinner.classList.add('d-none');
+            generationStatus.classList.add('d-none');
+            startQuizBtn.disabled = false;
+        }
+    });
+
+    window.setTopic = function (topic) {
+        topicInput.value = topic;
+        topicForm.dispatchEvent(new Event('submit'));
+    };
+
+    // Auto-start if preset_topic is provided
+    window.addEventListener('DOMContentLoaded', () => {
+        const presetTopic = "{{ preset_topic|escapejs }}";
+        if (presetTopic) {
+            topicForm.dispatchEvent(new Event('submit'));
+        }
+    });
+
+    function startQuiz() {
+        topicSelection.style.display = 'none';
+        quizInterface.style.display = 'block';
+        topicDisplay.textContent = currentTopic;
+        totalQSpan.textContent = questions.length;
+        renderQuestions();
+        showQuestion(0);
+    }
+
+    function renderQuestions() {
+        questionsContainer.innerHTML = '';
+        questions.forEach((q, index) => {
+            const card = document.createElement('div');
+            card.className = `question-card ${index === 0 ? 'active' : ''}`;
+            card.dataset.index = index;
+
+            const title = document.createElement('h4');
+            title.className = 'mb-4';
+            title.textContent = `${index + 1}. ${q.question}`;
+            card.appendChild(title);
+
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'd-grid gap-2';
+
+            q.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'btn option-btn';
+                btn.textContent = opt;
+                btn.addEventListener('click', () => selectOption(index, opt));
+                optionsDiv.appendChild(btn);
+            });
+
+            card.appendChild(optionsDiv);
+            questionsContainer.appendChild(card);
+        });
+    }
+
+    window.selectOption = function (qIndex, option) {
+        userAnswers[qIndex] = option;
+
+        const card = document.querySelector(`.question-card[data-index="${qIndex}"]`);
+        const btns = card.querySelectorAll('.option-btn');
+
+        btns.forEach(btn => {
+            if (btn.textContent === option) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
+        });
+    };
+
+    function showQuestion(index) {
+        document.querySelectorAll('.question-card').forEach(card => card.classList.remove('active'));
+        document.querySelector(`.question-card[data-index="${index}"]`).classList.add('active');
+
+        currentQuestionIndex = index;
+        currentQSpan.textContent = index + 1;
+
+        // Update progress bar
+        const progress = ((index + 1) / questions.length) * 100;
+        progressBar.style.width = `${progress}%`;
+
+        // Update buttons
+        prevBtn.disabled = index === 0;
+        if (index === questions.length - 1) {
+            nextBtn.style.display = 'none';
+            submitBtn.style.display = 'block';
+        } else {
+            nextBtn.style.display = 'block';
+            submitBtn.style.display = 'none';
+        }
+    }
+
+    prevBtn.addEventListener('click', () => {
+        if (currentQuestionIndex > 0) showQuestion(currentQuestionIndex - 1);
+    });
+
+    nextBtn.addEventListener('click', () => {
+        if (currentQuestionIndex < questions.length - 1) showQuestion(currentQuestionIndex + 1);
+    });
+
+    submitBtn.addEventListener('click', async () => {
+        let score = 0;
+        questions.forEach((q, index) => {
+            if (userAnswers[index] === q.correct_answer) {
+                score++;
+            }
+        });
+
+        const resultScreen = document.getElementById('result-screen');
+        const scoreDisplay = document.getElementById('score-display');
+        const feedbackMsg = document.getElementById('feedback-msg');
+
+        // Save result
+        try {
+            await fetch(`{% url 'submit_quiz_result' %}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    topic: currentTopic,
+                    score: score,
+                    total: questions.length
+                })
+            });
+        } catch (error) {
+            console.error('Error saving result:', error);
+        }
+
+        quizInterface.style.display = 'none';
+        resultScreen.style.display = 'block';
+        scoreDisplay.textContent = score;
+
+        const percentage = (score / questions.length) * 100;
+        if (percentage >= 80) {
+            feedbackMsg.textContent = "Excellent work! You have demonstrated strong skills.";
+            feedbackMsg.classList.add('text-success');
+        } else if (percentage >= 50) {
+            feedbackMsg.textContent = "Good effort! Keep practicing to improve your score.";
+            feedbackMsg.classList.add('text-warning');
+        } else {
+            feedbackMsg.textContent = "Keep learning! You can retake the quiz to improve.";
+            feedbackMsg.classList.add('text-danger');
+        }
+    });
+</script>
+{% endblock %}

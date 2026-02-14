@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Screening Results - {{ application.job.title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow border-0">
+            <div
+                class="card-header {% if application.match_score >= 80 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <h4 class="mb-0">
+                    {% if application.match_score >= 80 %}
+                    <i class="bi bi-check-circle-fill me-2"></i>Application Successful
+                    {% else %}
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Application Needs Improvement
+                    {% endif %}
+                </h4>
+            </div>
+            <div class="card-body p-5">
+                <div class="text-center mb-5">
+                    <div
+                        class="display-1 fw-bold {% if application.match_score >= 80 %}text-success{% else %}text-danger{% endif %}">
+                        {{ application.match_score|floatformat:0 }}%
+                    </div>
+                    <p class="h4 text-muted">Match Score</p>
+
+                    {% if application.match_score < 80 %} <div class="alert alert-warning mt-4 text-start">
+                        <h5><i class="bi bi-info-circle me-2"></i>Application Status: Review Required</h5>
+                        <p>Your resume match score is below our 80% threshold. We have flagged your profile for review,
+                            but we strongly recommend upskilling to improve your chances for this role.</p>
+                </div>
+                {% else %}
+                <div class="alert alert-success mt-4 text-start">
+                    <h5><i class="bi bi-check-circle me-2"></i>Great Match!</h5>
+                    <p>Your profile is a strong match for this position. Our HR team has been notified.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card h-100 bg-light border-0">
+                        <div class="card-body">
+                            <h5 class="text-success"><i class="bi bi-check-lg me-2"></i>Matched Skills</h5>
+                            <div class="d-flex flex-wrap gap-2 mt-3">
+                                {% for skill in matched_skills %}
+                                <span class="badge bg-success bg-opacity-25 text-success border border-success">{{ skill
+                                    }}</span>
+                                {% empty %}
+                                <span class="text-muted small">No direct skill matches found.</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100 bg-light border-0">
+                        <div class="card-body">
+                            <h5 class="text-danger"><i class="bi bi-x-lg me-2"></i>Missing Skills</h5>
+                            <div class="d-flex flex-wrap gap-2 mt-3">
+                                {% for skill in missing_skills %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">{{ skill
+                                    }}</span>
+                                {% empty %}
+                                <span class="text-muted small">No missing skills identified.</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5">
+                <h5><i class="bi bi-robot me-2"></i>AI Feedback</h5>
+                <p class="p-3 bg-light rounded border-start border-4 border-info">{{ application.ai_feedback }}</p>
+            </div>
+
+            {% if recommended_courses %}
+            <hr class="my-5">
+            <div class="mt-4">
+                <h3 class="mb-4 text-primary"><i class="bi bi-lightning-charge-fill me-2"></i>Recommended Upskilling
+                </h3>
+                <p class="lead mb-4">Based on your missing skills, we recommend the following courses to boost your
+                    profile:</p>
+
+                <div class="row g-4">
+                    {% for course in recommended_courses %}
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm transition-hover">
+                            {% if course.thumbnail %}
+                            <img src="{{ course.thumbnail.url }}" class="card-img-top" alt="{{ course.title }}"
+                                style="height: 150px; object-fit: cover;">
+                            {% else %}
+                            <div class="bg-primary d-flex align-items-center justify-content-center"
+                                style="height: 150px;">
+                                <i class="bi bi-book-half text-white" style="font-size: 3rem;"></i>
+                            </div>
+                            {% endif %}
+                            <div class="card-body">
+                                <h6 class="card-title fw-bold">{{ course.title }}</h6>
+                                <p class="small text-muted mb-2">{{ course.category|title }}</p>
+                                <a href="{% url 'course_detail' course.id %}"
+                                    class="btn btn-outline-primary btn-sm w-100 stretched-link">Start Learning</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="text-center mt-5">
+                <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
