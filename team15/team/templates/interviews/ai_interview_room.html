@@ -1,18 +1,23 @@
 {% extends 'base.html' %}
 {% block title %}AI Interview Room - TalentFlow AI{% endblock %}
 
+
+
 {% block content %}
 <div class="container py-4">
     <div class="row g-4">
         <!-- Header Section -->
         <div class="col-12 text-center mb-2">
             <h2 class="fw-bold"><i class="bi bi-broadcast text-danger me-2"></i>Live AI Interview Session</h2>
-            <p class="text-muted">Role: <span class="fw-bold text-primary">{{ session.role }}</span> | Focus: {{
-                session.interview_type }}</p>
+            <p class="text-muted">
+                Role: <span class="fw-bold text-primary">{{ session.role }}</span> |
+                Focus: {{ session.interview_type }}
+            </p>
         </div>
 
         <!-- Left: Interaction & Assistant -->
-        <div class="col-lg-4">
+        <div class="col-lg-3">
+
             <div class="card shadow-sm h-100 border-0 rounded-4">
                 <div class="card-body text-center p-5">
                     <div id="visualizer-box" class="mb-4 position-relative mx-auto"
@@ -21,9 +26,13 @@
                             class="position-absolute inset-0 border border-4 border-primary rounded-circle opacity-0"
                             style="transition: all 0.3s;"></div>
                         <div
-                            class="w-100 h-100 bg-light rounded-circle border d-flex align-items-center justify-center overflow-hidden">
-                            <img src="/static/images/robot_interviewer_avatar.png" id="ai-icon" class="img-fluid"
-                                alt="Robot Interviewer">
+                            class="w-100 h-100 bg-light rounded-circle border d-flex align-items-center justify-content-center overflow-hidden">
+                            <img src="/static/images/robot_interviewer_avatar.png" id="ai-icon-img" class="img-fluid"
+                                alt="Robot Interviewer"
+                                onerror="this.style.display='none'; document.getElementById('ai-icon-fallback').classList.remove('d-none');">
+                            <div id="ai-icon-fallback" class="d-none">
+                                <i class="bi bi-robot text-primary" style="font-size: 5rem;"></i>
+                            </div>
                         </div>
                     </div>
 
@@ -47,8 +56,9 @@
             </div>
         </div>
 
-        <!-- Right: Real-time Transcript -->
-        <div class="col-lg-8">
+        <!-- Middle: Real-time Transcript -->
+        <div class="col-lg-4">
+
             <div class="card shadow-sm h-100 border-0 rounded-4">
                 <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-bold uppercase small text-muted">Real-time Session Log</h6>
@@ -64,6 +74,28 @@
                         <i class="bi bi-chat-quote fs-1 mb-3 opacity-25"></i>
                         <p>The shared transcript will appear here.</p>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Code Editor -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm h-100 border-0 rounded-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold uppercase small text-muted">Interview Code Editor</h6>
+                    <select id="language-select" class="form-select form-select-sm w-auto">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="java">Java</option>
+                        <option value="cpp">C++</option>
+                    </select>
+                </div>
+                <div class="card-body p-0" style="height: 500px; position: relative;">
+                    <div id="editor" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0;"># Write your code
+                        here...</div>
+                </div>
+                <div class="card-footer bg-light border-0 py-2 text-center">
+                    <span class="small text-muted">The AI can see your code in real-time.</span>
                 </div>
             </div>
         </div>
@@ -88,8 +120,9 @@
     }
 
     .msg-bubble {
-        max-width: 85%;
-        border-radius: 1.25rem;
+        max-width: 95%;
+        border-radius: 1rem;
+        font-size: 0.9rem;
     }
 
     .msg-ai {
@@ -102,8 +135,17 @@
         border: 1px solid #cfe2ff;
         align-self: flex-end;
     }
+
+    #transcript-log {
+        scrollbar-width: thin;
+    }
 </style>
 
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js" type="text/javascript" charset="utf-8"></script>
 <script>
     const session_id = "{{ session.id }}";
     const toggleBtn = document.getElementById('toggle-session');
@@ -112,10 +154,26 @@
     const statusDot = document.getElementById('status-dot');
     const statusInd = document.getElementById('status-indicator');
     const log = document.getElementById('transcript-log');
-    const emoji = document.getElementById('ai-icon');
+    const emoji = document.getElementById('ai-icon-img');
+    const fallback = document.getElementById('ai-icon-fallback');
     const thinking = document.getElementById('ai-thinking');
     const overlay = document.getElementById('loading-overlay');
     const welcomeMsg = document.getElementById('welcome-msg');
+    const langSelect = document.getElementById('language-select');
+
+    // Initialize Ace Editor
+    const editor = ace.edit("editor");
+    editor.setTheme("ace/theme/chrome");
+    editor.session.setMode("ace/mode/python");
+    editor.setOptions({
+        fontSize: "14px",
+        showPrintMargin: false,
+        enableBasicAutocompletion: true,
+    });
+
+    langSelect.onchange = () => {
+        editor.session.setMode("ace/mode/" + langSelect.value);
+    };
 
     let isStarted = false;
     let recognition;
@@ -188,7 +246,11 @@
 
         u.onstart = () => {
             ring.classList.add('active');
-            emoji.className = "bi bi-person-badge fs-1 text-primary";
+            if (!emoji.style.display || emoji.style.display !== 'none') {
+                // If using an image, we could animate it here if desired
+            } else {
+                fallback.innerHTML = '<i class="bi bi-person-badge fs-1 text-primary" style="font-size: 5rem;"></i>';
+            }
             statusText.innerText = "Interviewer Speaking";
             statusDot.className = "d-inline-block rounded-circle bg-primary me-2";
             statusInd.classList.remove('d-none');
@@ -196,7 +258,9 @@
 
         u.onend = () => {
             ring.classList.remove('active');
-            emoji.className = "bi bi-person-badge fs-1 text-secondary";
+            if (emoji.style.display === 'none') {
+                fallback.innerHTML = '<i class="bi bi-robot text-primary" style="font-size: 5rem;"></i>';
+            }
             if (isStarted) {
                 tryStartMic();
             }
@@ -217,9 +281,13 @@
             const r = await fetch(`/interviews/ai-chat/${session_id}/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                body: JSON.stringify({ response: text }),
+                body: JSON.stringify({
+                    response: text,
+                    code: editor.getValue()
+                }),
                 signal: controller.signal
             });
+
             clearTimeout(id);
             const d = await r.json();
             thinking.classList.add('d-none');

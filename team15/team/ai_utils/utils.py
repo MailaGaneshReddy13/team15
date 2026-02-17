@@ -41,7 +41,7 @@ def parse_resume(file_text):
         {file_text}
         """
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.0-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json"
@@ -52,7 +52,7 @@ def parse_resume(file_text):
         print(f"AI API Error (parse_resume): {e}")
         return mock_data
 
-def analyze_match(resume_data, job_description):
+def analyze_match(resume_data, job_description, missing_skills=None):
     import random
     mock_data = {
         "match_score": random.randint(70, 95),
@@ -70,20 +70,22 @@ def analyze_match(resume_data, job_description):
         return mock_data
         
     try:
+        missing_skills_str = ", ".join(missing_skills) if missing_skills else "None specified"
         prompt = f"""
         Compare the following resume data with the job description.
         Resume: {json.dumps(resume_data)}
         Job Description: {job_description}
+        Missing Skills Identified: {missing_skills_str}
 
         Provide the following in JSON format:
         - match_score (0-100)
         - skills_matched (list)
         - missing_skills (list)
         - ai_feedback (string): A detailed analysis of the candidate's fit for the role. MUST be at least 3-4 sentences long, explaining why they are a good or bad match.
-        - improvement_suggestions (string): Specific, actionable advice on what certifications, technologies, or projects the candidate should pursue to improve their chances.
+        - improvement_suggestions (string): A detailed, actionable paragraph (at least 3-4 sentences) suggesting specific certifications, projects, or technologies to learn. Focus SPECIFICALLY on the 'Missing Skills Identified' listed above.
         """
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.0-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json"
@@ -126,7 +128,7 @@ def generate_interview_questions(resume_data, job_title):
             Provide the response as a JSON list of strings [q1, q2, ..., q30].
             """
             response = client.models.generate_content(
-                model="gemini-flash-latest",
+                model="gemini-2.0-flash",
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json"
@@ -177,7 +179,7 @@ def evaluate_answer(question, answer):
         - improvements (string)
         """
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.0-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json"
@@ -232,7 +234,7 @@ def generate_quiz_questions(topic, resume_data=None):
         ]
         '''
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.0-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json"
@@ -264,7 +266,7 @@ def generate_quiz_questions(topic, resume_data=None):
         print(f"Raw Response Content: {response.text if 'response' in locals() else 'No response'}")
         return mock_questions
 
-def get_next_ai_question(session, candidate_response):
+def get_next_ai_question(session, candidate_response, current_code=None):
     """
     Uses Gemini to generate the next interviewer question or follow-up.
     """
@@ -277,38 +279,67 @@ def get_next_ai_question(session, candidate_response):
     if not client:
         return mock_response
         
-    try:
-        # Construct a more forceful context to prevent repetition
-        prompt = f"""
-        You are an expert AI Interviewer for a {session.role} position ({session.experience_level} level).
-        Tech Stack: {session.tech_stack}.
-        
-        Session Progress: {session.transcript.count('AI:')} / {session.num_questions} questions asked.
-        
-        Recent Transcript:
-        {session.transcript}
-        
-        Candidate's Response: "{candidate_response}"
-        
-        Task:
-        1. Acknowledge the response briefly.
-        2. Ask a NEW, distinct question related to the role and tech stack.
-        3. DO NOT repeat questions already in the transcript.
-        4. If {session.num_questions} questions have been asked, say: "Thank you for your time. The interview is now complete."
-        5. Provide only the text for the interviewer to speak.
-        """
-        
-        response = client.models.generate_content(
-            model="gemini-flash-latest",
-            contents=prompt
-        )
-        return response.text.strip()
-    except Exception as e:
-        print(f"AI API Error (get_next_ai_question): {e}")
-        # Return a slightly different fallback to avoid extreme repetition
-        if "Can you tell me more" in session.transcript:
-            return "Moving on, how do you handle tight deadlines and technical debt?"
-        return mock_response
+    import time
+    retries = 3
+    for attempt in range(retries):
+        try:
+            # Construct a more forceful context to prevent repetition
+            prompt = f"""
+            You are an expert AI Interviewer for a {session.role} position ({session.experience_level} level).
+            Interview Type: {session.interview_type}
+            Tech Stack: {session.tech_stack}.
+            
+            Session Progress: {session.transcript.count('AI:')} / {session.num_questions} questions asked.
+            
+            Recent Transcript:
+            {session.transcript}
+            
+            Candidate's Response: "{candidate_response}"
+            Current Code in Editor:
+            ```
+            {current_code if current_code else "No code written yet"}
+            ```
+            
+            Task Instructions:
+            1. Acknowledge the candidate's response and any code they've written.
+            2. If the interview type is "Technical", you MUST prioritize asking for code implementation or analyzing the code in the editor.
+            3. If no code has been written yet and this is a Technical interview, provide a specific coding challenge or function for the candidate to implement in the editor.
+            4. Ask a NEW, distinct question. Do not move on to behavioral questions until technical proficiency is established (if Technical).
+            5. DO NOT repeat questions already in the transcript.
+            6. If {session.num_questions} questions have been asked, say: "Thank you for your time. The interview is now complete."
+            7. Provide only the text for the interviewer to speak.
+            """
+            
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt
+            )
+            return response.text.strip()
+        except Exception as e:
+            print(f"AI API Error (get_next_ai_question) Attempt {attempt+1}: {e}")
+            if "429" in str(e) or "quota" in str(e).lower():
+                if attempt < retries - 1:
+                    sleep_time = 2 * (2 ** attempt)
+                    print(f"Quota hit. Waiting {sleep_time}s...")
+                    time.sleep(sleep_time)
+                    continue
+            
+            if attempt == retries - 1:
+                # Last resort: try a different model if it's a model-based quota
+                try:
+                    prompt += "\nNote: This is a retry due to technical issues. Please be brief."
+                    response = client.models.generate_content(
+                        model="gemini-1.5-flash",
+                        contents=prompt
+                    )
+                    return response.text.strip()
+                except:
+                    pass
+                
+                if "Can you tell me more" in session.transcript:
+                    return "Moving on, how do you handle tight deadlines and technical debt?"
+                return mock_response
+    return mock_response
 
 def generate_detailed_feedback(transcript, role):
     """
@@ -342,11 +373,13 @@ def generate_detailed_feedback(transcript, role):
         
     try:
         prompt = f"""
-        Analyze the following interview transcript for a {role} position.
+        Analyze the following interview transcript and code for a {role} position.
         
         Transcript:
         {transcript}
         
+        Task:
+        Evaluate the candidate's communication, technical depth, and coding ability if code was provided in the transcript or context.
         Provide a detailed evaluation in JSON format with the following structure:
         {{
             "communication_score": (0-100),
@@ -356,19 +389,20 @@ def generate_detailed_feedback(transcript, role):
             "confidence_score": (0-100),
             "clarity_score": (0-100),
             "overall_score": (0-100),
-            "feedback_summary": "Short 2-3 sentence summary",
+            "feedback_summary": "Short 2-3 sentence summary including code quality",
             "detailed_feedback": {{
                 "Communication": "...",
                 "Technical Knowledge": "...",
                 "Problem Solving": "...",
                 "Cultural Fit": "...",
                 "Confidence": "...",
-                "Clarity": "..."
+                "Clarity": "...",
+                "Code Quality": "Analysis of the code written during the session"
             }}
         }}
         """
         response = client.models.generate_content(
-            model="gemini-flash-latest",
+            model="gemini-2.0-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json"

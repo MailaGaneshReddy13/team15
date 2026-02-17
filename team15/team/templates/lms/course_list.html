@@ -7,9 +7,9 @@
 <div class="container py-5">
     <h2 class="mb-4 text-primary fw-bold"><i class="bi bi-collection-play me-2"></i>Learning Center</h2>
 
-    <div class="row g-4">
+    <div class="row g-4" id="course-grid">
         {% for course in courses %}
-        <div class="col-md-4">
+        <div class="col-md-4 course-item {% if forloop.counter > 6 %}d-none{% endif %}">
             <div class="card h-100 border-0 shadow-sm transition-hover">
                 {% if course.thumbnail %}
                 <img src="{{ course.thumbnail.url }}" class="card-img-top" alt="{{ course.title }}"
@@ -53,5 +53,41 @@
         </div>
         {% endfor %}
     </div>
+
+    {% if courses.count > 6 %}
+    <div class="text-center mt-5" id="view-more-container">
+        <button id="view-more-btn" class="btn btn-primary btn-lg px-5 rounded-pill shadow-sm fw-bold">
+            <i class="bi bi-plus-circle me-2"></i>View More Courses
+        </button>
+    </div>
+    {% endif %}
 </div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const viewMoreBtn = document.getElementById('view-more-btn');
+        if (viewMoreBtn) {
+            viewMoreBtn.addEventListener('click', function () {
+                const hiddenItems = document.querySelectorAll('.course-item.d-none');
+                hiddenItems.forEach(item => {
+                    item.classList.remove('d-none');
+                    item.classList.add('animate__animated', 'animate__fadeInUp');
+                });
+                document.getElementById('view-more-container').classList.add('d-none');
+            });
+        }
+    });
+</script>
+<style>
+    .transition-hover {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .transition-hover:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .175) !important;
+    }
+</style>
+{% endblock %}
 {% endblock %}

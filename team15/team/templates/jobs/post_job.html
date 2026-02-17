@@ -1,19 +1,25 @@
 {% extends 'base.html' %}
 {% load django_bootstrap5 %}
 
-{% block title %}Post Job - HR AI Agent{% endblock %}
+{% block title %}
+{% if is_edit %}Edit Job - {{ job.title }}{% else %}Post Job{% endif %} - HR AI Agent
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card p-4">
-            <h2 class="mb-4">Post a New Job</h2>
+            <h2 class="mb-4">
+                {% if is_edit %}Edit Job Posting{% else %}Post a New Job{% endif %}
+            </h2>
             <form method="post">
                 {% csrf_token %}
                 {% bootstrap_form form %}
                 <div class="d-flex justify-content-between mt-4">
                     <a href="{% url 'hr_jobs' %}" class="btn btn-outline-secondary">Cancel</a>
-                    <button type="submit" class="btn btn-primary">Post Job</button>
+                    <button type="submit" class="btn btn-primary">
+                        {% if is_edit %}Update Job{% else %}Post Job{% endif %}
+                    </button>
                 </div>
             </form>
         </div>

@@ -41,6 +41,9 @@
             {% else %}
             <h5>Manage Job</h5>
             <a href="{% url 'view_applicants' job.id %}" class="btn btn-info w-100 mb-2">View Applicants</a>
+            {% if user == job.hr %}
+            <a href="{% url 'edit_job' job.id %}" class="btn btn-warning w-100 mb-2">Edit Job Posting</a>
+            {% endif %}
             {% endif %}
             <a href="{% url 'job_list' %}" class="btn btn-outline-secondary w-100 mt-2">Back to List</a>
         </div>

@@ -8,6 +8,7 @@ class User(AbstractUser):
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='candidate')
     phone = models.CharField(max_length=15, blank=True, null=True)
+    organization_name = models.CharField(max_length=255, blank=True, null=True, help_text="Required for HR role")
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
 
     def __str__(self):

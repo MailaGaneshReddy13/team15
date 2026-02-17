@@ -15,14 +15,17 @@
             <div class="row align-items-center">
                 <div class="col-md-6">
                     <h5 class="mb-1 text-primary">{{ job.title }}</h5>
-                    <p class="text-muted mb-0 small"><i class="bi bi-geo-alt me-1"></i>{{ job.location }} | Posted on {{
-                        job.created_at|date:"M d, Y" }}</p>
+                    <p class="text-muted mb-0 small">
+                        <i class="bi bi-geo-alt me-1"></i>
+                        {{ job.location }} | Posted on {{ job.created_at|date:"M d, Y" }}
+                    </p>
                 </div>
                 <div class="col-md-2 text-center border-start">
                     <div class="h4 mb-0 fw-bold">{{ job.applications.count }}</div>
                     <div class="small text-muted">Applicants</div>
                 </div>
                 <div class="col-md-4 text-end border-start">
+                    <a href="{% url 'edit_job' job.id %}" class="btn btn-outline-secondary me-2">Edit</a>
                     <a href="{% url 'view_applicants' job.id %}" class="btn btn-outline-primary me-2">View
                         Applicants</a>
                     <a href="{% url 'job_detail' job.id %}" class="btn btn-link">View Details</a>

@@ -20,3 +20,31 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const roleSelect = document.getElementById('role-select');
+        const orgNameInput = document.getElementById('org-name-field');
+
+        function toggleOrgName() {
+            if (roleSelect && orgNameInput) {
+                const orgFieldContainer = orgNameInput.closest('.mb-3'); // Bootstrap 5 form group
+                if (roleSelect.value === 'hr') {
+                    if (orgFieldContainer) orgFieldContainer.style.display = 'block';
+                    orgNameInput.required = true;
+                } else {
+                    if (orgFieldContainer) orgFieldContainer.style.display = 'none';
+                    orgNameInput.required = false;
+                    orgNameInput.value = ''; // Clear value if hidden
+                }
+            }
+        }
+
+        if (roleSelect) {
+            roleSelect.addEventListener('change', toggleOrgName);
+            toggleOrgName(); // Run on load
+        }
+    });
+</script>
+{% endblock %}

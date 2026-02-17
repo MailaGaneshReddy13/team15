@@ -27,6 +27,12 @@
                 </div>
             </div>
 
+            <div class="row justify-content-center mb-4">
+                <div class="col-auto">
+                    <span class="badge bg-secondary opacity-75">Data Calculated: {{ last_updated }}</span>
+                </div>
+            </div>
+
             <div class="row g-4 mb-4">
                 <div class="col-md-6">
                     <div class="card bg-light border-0 h-100 p-3">
@@ -34,10 +40,10 @@
                         </h6>
                         {% if matched_skills %}
                         <div class="d-flex flex-wrap gap-2">
-                            {% for skill in matched_skills %}
-                            <span
-                                class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">{{
-                                skill }}</span>
+                            {% for s in matched_skills %}
+                            <span class="badge bg-success bg-opacity-10 text-success">
+                                {{ s }}
+                            </span>
                             {% endfor %}
                         </div>
                         {% else %}
@@ -51,10 +57,10 @@
                             Skills</h6>
                         {% if missing_skills %}
                         <div class="d-flex flex-wrap gap-2">
-                            {% for skill in missing_skills %}
-                            <span
-                                class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">{{
-                                skill }}</span>
+                            {% for s in missing_skills %}
+                            <span class="badge bg-danger bg-opacity-10 text-danger">
+                                {{ s }}
+                            </span>
                             {% endfor %}
                         </div>
                         {% else %}
@@ -66,13 +72,50 @@
 
             <div class="mt-4">
                 <h5 class="fw-bold"><i class="bi bi-chat-left-dots-fill me-2 text-primary"></i>AI Feedback</h5>
-                <p class="bg-light p-3 rounded shadow-sm">{{ resume.ai_feedback }}</p>
+                <p class="bg-light p-3 rounded shadow-sm">
+                    {{ resume.ai_feedback }}
+                </p>
 
                 <h5 class="fw-bold mt-4"><i class="bi bi-lightbulb-fill me-2 text-warning"></i>Improvement Suggestions
                 </h5>
-                <p class="bg-light p-3 rounded border-start border-4 border-info shadow-sm">{{
-                    resume.improvement_suggestions }}</p>
+                <p class="bg-light p-3 rounded border-start border-4 border-info shadow-sm">
+                    {{ resume.improvement_suggestions }}
+                </p>
             </div>
+
+            {% if recommended_courses %}
+            <hr class="my-5">
+            <div class="mt-4">
+                <h3 class="mb-4 text-primary"><i class="bi bi-lightning-charge-fill me-2"></i>Recommended Upskilling
+                </h3>
+                <p class="lead mb-4">Based on your missing skills, we recommend the following courses to boost your
+                    profile:</p>
+
+                <div class="row g-4">
+                    {% for course in recommended_courses %}
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            {% if course.thumbnail %}
+                            <img src="{{ course.thumbnail.url }}" class="card-img-top" alt="{{ course.title }}"
+                                style="height: 150px; object-fit: cover;">
+                            {% else %}
+                            <div class="bg-primary d-flex align-items-center justify-content-center"
+                                style="height: 150px;">
+                                <i class="bi bi-book-half text-white" style="font-size: 3rem;"></i>
+                            </div>
+                            {% endif %}
+                            <div class="card-body">
+                                <h6 class="card-title fw-bold">{{ course.title }}</h6>
+                                <p class="small text-muted mb-2">{{ course.category|title }}</p>
+                                <a href="{% url 'course_detail' course.id %}"
+                                    class="btn btn-outline-primary btn-sm w-100 stretched-link">Start Learning</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             <hr class="my-5">
 
@@ -91,8 +134,7 @@
                 {% else %}
                 <div class="alert alert-warning border-0 shadow-sm mb-4">
                     <i class="bi bi-lock-fill me-2"></i> A match score of <strong>80% or higher</strong> is required to
-                    apply.
-                    Please improve your resume and try again!
+                    apply. Please improve your resume and try again!
                 </div>
                 <button class="btn btn-secondary btn-lg px-5 shadow" disabled>
                     <i class="bi bi-send-slash-fill me-2"></i> Application Restricted

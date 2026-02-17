@@ -249,12 +249,16 @@ def chat_with_interviewer(request, session_id):
     if request.method == 'POST':
         data = json.loads(request.body)
         candidate_response = data.get('response', '')
+        current_code = data.get('code', '')
         
         # Append candidate response to transcript
         session.transcript += f"Candidate: {candidate_response}\n"
+        if current_code and current_code != "# Write your code here...":
+             # We can optionally tag the code here or just pass it to the AI
+             pass
         
-        # Get next question from Gemini
-        next_question = get_next_ai_question(session, candidate_response)
+        # Get next question from Gemini, now with code awareness
+        next_question = get_next_ai_question(session, candidate_response, current_code)
         
         # Append AI question to transcript
         session.transcript += f"AI: {next_question}\n"

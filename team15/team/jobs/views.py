@@ -13,16 +13,25 @@ def extract_skills_list(skills_text):
     """Helper to extract list of skills from comma-separated string."""
     if not skills_text:
         return []
+    
+    # Pre-clean strings from common template artifacts
+    def clean_skill(s):
+        if not isinstance(s, str):
+            return str(s)
+        # Remove literal {{ skill }} patterns and variations
+        s = s.replace('{{', '').replace('}}', '').replace('{', '').replace('}', '').strip()
+        return s
+
     if isinstance(skills_text, list):
-        # Even if it's a list, filter it
-        return [s.replace('{{','').replace('}}','').strip() for s in skills_text if s.lower() not in ['skills', 'skill']]
+        skills = [clean_skill(s) for s in skills_text]
+        return [s for s in skills if s.lower() not in ['skills', 'skill', '']]
     
     # Remove "Skills:" prefix if present
     if ':' in skills_text:
         skills_text = skills_text.split(':', 1)[1]
         
-    skills = [s.strip() for s in skills_text.split(',') if s.strip()]
-    return [s.replace('{{','').replace('}}','').strip() for s in skills if s.lower() not in ['skills', 'skill']]
+    skills = [clean_skill(s) for s in skills_text.split(',') if s.strip()]
+    return [s for s in skills if s.lower() not in ['skills', 'skill', '']]
 
 def calculate_skills_match(resume_skills, job_skills_text):
     """
@@ -59,7 +68,33 @@ def calculate_skills_match(resume_skills, job_skills_text):
         elif skill.lower() in missing_skills_lower:
             missing_skills.append(skill)
             
-    return matched_skills, missing_skills
+    # Paranoid verification check
+    # Ensure no template placeholders slipped through
+    final_missing = []
+    for skill in missing_skills:
+        clean = skill.replace('{', '').replace('}', '').strip()
+        if clean.lower() not in ['skill', 'skills', '']:
+            final_missing.append(skill)
+            
+    return matched_skills, final_missing
+    
+def get_recommended_courses(missing_skills):
+    """Helper to get recommended courses based on missing skills."""
+    from lms.models import Course
+    from django.db.models import Q
+    
+    search_terms = missing_skills
+    query = Q()
+    for term in search_terms:
+        # Search title and description for each skill
+        query |= Q(title__icontains=term) | Q(description__icontains=term)
+        
+    recommended_courses = []
+    if query:
+        # Get ALL matching courses, no limit
+        recommended_courses = list(Course.objects.filter(query).distinct())
+        
+    return recommended_courses
 
 @login_required
 def post_job(request):
@@ -76,6 +111,29 @@ def post_job(request):
     else:
         form = JobPostForm()
     return render(request, 'jobs/post_job.html', {'form': form})
+
+@login_required
+def edit_job(request, pk):
+    job = get_object_or_404(Job, pk=pk)
+    # Security check: only the HR user who posted the job can edit it
+    if request.user.role != 'hr' or job.hr != request.user:
+        messages.error(request, "You do not have permission to edit this job.")
+        return redirect('hr_jobs')
+    
+    if request.method == 'POST':
+        form = JobPostForm(request.POST, instance=job)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Job updated successfully!")
+            return redirect('hr_jobs')
+    else:
+        form = JobPostForm(instance=job)
+    
+    return render(request, 'jobs/post_job.html', {
+        'form': form,
+        'is_edit': True,
+        'job': job
+    })
 
 @login_required
 def hr_jobs(request):
@@ -148,7 +206,8 @@ def apply_job(request, pk):
                 
                 # AI Match - Get Score & Feedback Only
                 # We still use AI for score and feedback, but we override the skills lists
-                match_data = analyze_match(parsed_data, job.description)
+                # PASS MISSING SKILLS TO AI FOR BETTER SUGGESTIONS
+                match_data = analyze_match(parsed_data, job.description, missing_skills)
                 
                 # Update resume with calculated data
                 resume_obj.match_score = match_data.get('match_score', 0)
@@ -176,14 +235,35 @@ def screening_preview(request, resume_id, job_id):
     job = get_object_or_404(Job, id=job_id)
     
     # Dynamic Recalculation (Fresh on every request)
+    # print(f"DEBUG: Job ID {job.id}, Skills: {job.skills_required}")
     resume_skills = resume.parsed_data.get('Skills', [])
+    # print(f"DEBUG: Resume Skills: {resume_skills}")
     matched_skills, missing_skills = calculate_skills_match(resume_skills, job.skills_required)
+    # print(f"DEBUG: Calculated Missing Skills: {missing_skills}")
+
+    # FORCE UPDATE AI ANALYSIS (to fix stale data for the user)
+    import datetime
+    now_str = datetime.datetime.now().strftime("%H:%M:%S")
     
+    # Re-run analysis with fresh prompt requirements
+    match_data = analyze_match(resume.parsed_data, job.description, missing_skills)
+    
+    # Update AND Save the resume with clean feedback
+    resume.match_score = match_data.get('match_score', 0)
+    resume.ai_feedback = match_data.get('ai_feedback', '')
+    resume.improvement_suggestions = match_data.get('improvement_suggestions', '')
+    resume.save()
+
+    # Recommender System (Matches ALL missing skills)
+    recommended_courses = get_recommended_courses(missing_skills)
+
     context = {
         'resume': resume,
         'job': job,
         'matched_skills': matched_skills,
-        'missing_skills': missing_skills
+        'missing_skills': missing_skills,
+        'recommended_courses': recommended_courses,
+        'last_updated': now_str
     }
     return render(request, 'jobs/screening_preview.html', context)
 
@@ -236,27 +316,7 @@ def screening_result(request, pk):
     # Recommender System
     recommended_courses = []
     if application.match_score < 80:
-        # Simple keyword matching logic
-        # 1. Get all missing skills
-        # 2. Find courses that mention these skills in title or description
-        
-        # Normalize missing skills
-        search_terms = missing_skills
-        
-        query = Q()
-        for term in search_terms:
-            query |= Q(title__icontains=term) | Q(description__icontains=term)
-            
-        if query:
-            recommended_courses = Course.objects.filter(query).distinct()[:3]
-            
-        # Fallback: If no specific courses found, show category based courses
-        if len(recommended_courses) < 3:
-             # Add more generic courses based on job title or category
-             # For now, just fill up with popular technical courses
-             remaining = 3 - len(recommended_courses)
-             additional_courses = Course.objects.filter(category='technical').exclude(id__in=[c.id for c in recommended_courses])[:remaining]
-             recommended_courses = list(recommended_courses) + list(additional_courses)
+        recommended_courses = get_recommended_courses(missing_skills)
 
     context = {
         'application': application,
